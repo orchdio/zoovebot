@@ -4,8 +4,9 @@
 
 extern crate dotenv;
 
-use chrono::prelude::*;
-use chrono::*;
+use chrono::DateTime;
+use chrono::Duration;
+use chrono::Utc;
 use dotenv::dotenv;
 use egg_mode::tweet as eTweet;
 use egg_mode::*;
@@ -13,8 +14,12 @@ use preview_rs::Preview;
 use redis::Commands;
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
+use std::cell::RefCell;
 use std::env;
 use std::fmt::Display;
+use std::time::Duration as StdDuration;
+
+use tokio::{select, spawn, task::spawn_blocking, time::interval};
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -92,6 +97,24 @@ pub struct Tidal {
 
 #[tokio::main]
 async fn main() {
+    let ticker1 = ticker(300);
+    let ticker = spawn_blocking(|| ticker1).await.unwrap();
+    select! {
+        _ = ticker => {
+            println!("ticker finished");
+        }
+    }
+}
+
+async fn ticker(seconds: u64) {
+    let mut interval = interval(StdDuration::from_secs(seconds));
+    loop {
+        interval.tick().await;
+        function().await;
+    }
+}
+
+async fn function() {
     dotenv().ok();
     // implement an async code that fetches last mentions from twitter api using reqwest
     // and then prints them to the console
@@ -130,21 +153,21 @@ async fn main() {
         .expect("Failed to get mentions");
 
     for tweet in feed {
-        // check if tweet is already processed
-        let tweet_id = tweet.id.to_string();
-        let tweet_id_exists: bool = con.get(tweet_id).unwrap_or(false);
-
-        if tweet_id_exists {
-            println!("Tweet already processed");
-            continue;
-        }
-
         let created_at = tweet.created_at.to_rfc2822();
         if Utc::now()
             .checked_sub_signed(Duration::minutes(interval_time.parse::<_>().unwrap()))
             .unwrap()
             <= DateTime::parse_from_rfc2822(&created_at).unwrap()
         {
+            // check if tweet is already processed
+            let tweet_id = tweet.id.to_string();
+            let tweet_id_exists: bool = con.get(tweet_id).unwrap_or(false);
+
+            if tweet_id_exists {
+                println!("Tweet already processed");
+                continue;
+            }
+
             println!(
                 "The tweet has one link attached. Fetching the link now {:#?}",
                 tweet.entities.urls
@@ -164,15 +187,9 @@ async fn main() {
 
             // then get the preview.
             // let preview = get_preview(&link.to_owned()).await;
-            let preview = Preview::async_new(&link)
-                .await
-                .async_fetch_preview()
-                .await
-                .url
-                .expect("Failed to get preview");
 
             let api_response = reqwest::Client::new()
-                .get(format!("{}={}", orchdio_endpoint, preview.to_owned()))
+                .get(format!("{}={}", orchdio_endpoint, link))
                 .header(
                     env::var("ORCHDIO_HEADER").expect("ORCHDIO_HEADER must be set"),
                     env::var("ZOOVEBOT_ORCHDIO_KEY").expect("ZOOVEBOT_ORCHDIO_KEY must be set"),
@@ -244,4 +261,6 @@ async fn main() {
             );
         }
     }
+
+    println!("No mention yet. Checked at {}", Utc::now());
 }
