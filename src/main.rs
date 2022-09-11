@@ -97,7 +97,7 @@ pub struct Tidal {
 
 #[tokio::main]
 async fn main() {
-    let ticker1 = ticker(300);
+    let ticker1 = ticker(15);
     let ticker = spawn_blocking(|| ticker1).await.unwrap();
     select! {
         _ = ticker => {
@@ -160,8 +160,8 @@ async fn function() {
             <= DateTime::parse_from_rfc2822(&created_at).unwrap()
         {
             // check if tweet is already processed
-            let tweet_id = tweet.id.to_string();
-            let tweet_id_exists: bool = con.get(tweet_id).unwrap_or(false);
+            let tweet_id = tweet.id;
+            let tweet_id_exists: bool = con.get(tweet_id.to_string()).unwrap_or(false);
 
             if tweet_id_exists {
                 println!("Tweet already processed");
@@ -187,6 +187,13 @@ async fn function() {
 
             // then get the preview.
             // let preview = get_preview(&link.to_owned()).await;
+            let link = async {
+                let p = Preview::async_new(&link.to_owned()).await;
+                let url = p.fetch_preview().url;
+                return url;
+            }
+            .await
+            .unwrap_or_default();
 
             let api_response = reqwest::Client::new()
                 .get(format!("{}={}", orchdio_endpoint, link))
@@ -230,11 +237,10 @@ async fn function() {
             links.retain(|x| x != "");
 
             let reply_text = format!(
-                "Hey 👋🏾 @{}, here are some of the links i found for you {}.
-
-                Please tag again to convert if you want to convert another track and I'll reply in a few minutes.",
+                "Hey 👋🏾 @{}, here are some of the links i found for you:\n {}.\n
+Please tag again to convert another track and I'll reply in a few minutes.",
                 tweet.user.as_ref().unwrap().screen_name,
-                links.join("\n")
+                links.join("\n ").trim()
             );
 
             let reply = eTweet::DraftTweet::new(reply_text.clone())

@@ -987,9 +987,9 @@ checksum = "925383efa346730478fb4838dbe9137d2a47675ad789c546d150a6e1dd4ab31c"
 
 [[package]]
 name = "preview-rs"
-version = "0.1.1"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "adb228c7ad84f648056ef9c7bb56a2fc237aa1d72d0e299a8ff42fe4fd63c17e"
+checksum = "938d73df366f8642abb4ef471ad559bfaa9a929713eaf7c3f5df94e0ab4e174b"
 dependencies = [
  "reqwest",
  "scraper",
