@@ -19,6 +19,6 @@ The above may change anytime due to any reason but contributions are welcome. **
 
 Currently things that are left todo and are short-term needs are:
 
-- Tests (probably not necessary at the moment because its pretty small)
-- Error handling
-- Multiple links detection and handling
+- [ ] Tests (probably not necessary at the moment because its pretty small)
+- [ ] Error handling
+- [ ] Multiple links detection and handling
