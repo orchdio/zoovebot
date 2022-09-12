@@ -24,7 +24,7 @@ use tokio::{select, spawn, task::spawn_blocking, time::interval};
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct APIResponse {
-    pub data: Data,
+    pub data: Option<Data>,
     pub message: String,
     pub status: i64,
 }
@@ -161,7 +161,7 @@ async fn function() {
         {
             // check if tweet is already processed
             let tweet_id = tweet.id;
-            let tweet_id_exists: bool = con.get(tweet_id.to_string()).unwrap_or(false);
+            let tweet_id_exists: bool = false; // con.get(tweet_id.to_string()).unwrap_or(false);
 
             if tweet_id_exists {
                 println!("Tweet already processed");
@@ -195,6 +195,8 @@ async fn function() {
             .await
             .unwrap_or_default();
 
+            println!("The link is {:#?}", link);
+
             let api_response = reqwest::Client::new()
                 .get(format!("{}={}", orchdio_endpoint, link))
                 .header(
@@ -208,23 +210,32 @@ async fn function() {
                 .await
                 .expect("FATAL: error getting deserializing API response");
 
+            let api_data = api_response.data;
+            if api_data.is_none() {
+                println!("No result found for the link");
+                continue;
+            }
+
             let mut links = vec![
-                api_response
-                    .data
+                api_data
+                    .clone()
+                    .unwrap()
                     .platforms
                     .deezer
                     .unwrap_or_default()
                     .url
                     .unwrap_or_default(),
-                api_response
-                    .data
+                api_data
+                    .clone()
+                    .unwrap()
                     .platforms
                     .spotify
                     .unwrap_or_default()
                     .url
                     .unwrap_or_default(),
-                api_response
-                    .data
+                api_data
+                    .clone()
+                    .unwrap()
                     .platforms
                     .tidal
                     .unwrap_or_default()
