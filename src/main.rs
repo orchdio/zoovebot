@@ -1,25 +1,21 @@
-// TODO: implement running at interval
-// TODO: properly handle errors, for example duplicate tweet errors and (probably) rate limit errors
-// TODO: unit tests and remove some values hidden behind env variables
-
 extern crate dotenv;
 
 use chrono::DateTime;
 use chrono::Duration;
 use chrono::Utc;
 use dotenv::dotenv;
+use egg_mode::error::Error;
 use egg_mode::tweet as eTweet;
 use egg_mode::*;
 use preview_rs::Preview;
 use redis::Commands;
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
-use std::cell::RefCell;
 use std::env;
 use std::fmt::Display;
 use std::time::Duration as StdDuration;
 
-use tokio::{select, spawn, task::spawn_blocking, time::interval};
+use tokio::{select, task::spawn_blocking, time::interval};
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -161,20 +157,30 @@ async fn function() {
         {
             // check if tweet is already processed
             let tweet_id = tweet.id;
-            let tweet_id_exists: bool = false; // con.get(tweet_id.to_string()).unwrap_or(false);
+            let tweet_id_exists: bool = con.get(tweet_id.to_string()).unwrap_or(false);
 
             if tweet_id_exists {
                 println!("Tweet already processed");
                 continue;
             }
 
-            println!(
-                "The tweet has one link attached. Fetching the link now {:#?}",
-                tweet.entities.urls
+            if tweet.clone().entities.urls.into_iter().len() > 1 {
+                let reply_text = format!(
+                "Hey 👋🏾 @{}, unfortunately I can only process one link per tweet. Please try again with one link",
+                tweet.user.as_ref().unwrap().screen_name,
             );
 
-            if tweet.clone().entities.urls.into_iter().count() > 1 {
-                // TODO: implement replying to the tweet with the error message being printed to terminal
+                let reply = eTweet::DraftTweet::new(reply_text.clone())
+                    .in_reply_to(tweet.id)
+                    .send(&token.clone())
+                    .await;
+
+                // TODO: handle multiple link support and retire this code
+                // most likely, somebody wants to convert just one track at a time, so for now, no much stress with the error handling
+                match reply {
+                    Ok(_) => println!("Reply sent successfully"),
+                    Err(e) => println!("Error sending reply: {}", e),
+                }
                 println!("The tweet has more than one link attached. please send one link and make sure its a valid link on a streaming platform");
             }
 
@@ -189,13 +195,10 @@ async fn function() {
             // let preview = get_preview(&link.to_owned()).await;
             let link = async {
                 let p = Preview::async_new(&link.to_owned()).await;
-                let url = p.fetch_preview().url;
-                return url;
+                p.fetch_preview().url
             }
             .await
             .unwrap_or_default();
-
-            println!("The link is {:#?}", link);
 
             let api_response = reqwest::Client::new()
                 .get(format!("{}={}", orchdio_endpoint, link))
@@ -245,7 +248,7 @@ async fn function() {
             ];
 
             // remove urls that may be empty
-            links.retain(|x| x != "");
+            links.retain(|x| !x.is_empty());
 
             let reply_text = format!(
                 "Hey 👋🏾 @{}, here are some of the links i found for you:\n {}.\n
@@ -257,25 +260,49 @@ Please tag again to convert another track and I'll reply in a few minutes.",
             let reply = eTweet::DraftTweet::new(reply_text.clone())
                 .in_reply_to(tweet.id)
                 .send(&token.clone())
-                .await
-                .expect("Failed to send reply");
+                .await;
 
-            println!(
-                "Replied to tweet {} with tweet that has ID {}",
-                tweet.id, reply.id
-            );
+            match reply {
+                Ok(t) => {
+                    // save the tweet id to redis
+                    let _: () = con.set(tweet.id, true).unwrap();
 
-            // save the tweet id to redis
-            let _: () = con.set(tweet.id, true).unwrap();
+                    println!(
+                        "{}: {} at {}. Replied wuth {}",
+                        tweet.user.as_ref().unwrap().screen_name,
+                        tweet.text,
+                        tweet.response.created_at,
+                        t.text,
+                    );
+                }
 
-            // TODO: implement calling zoove api to get the links and then reply to the tweet
-            println!(
-                "{}: {} at {}. Replied wuth {}",
-                tweet.user.as_ref().unwrap().screen_name,
-                tweet.text,
-                tweet.response.created_at,
-                reply.text
-            );
+                // for now, just log the error. in the future, we'll retry and handle each case as necessary
+                Err(Error::TwitterError(_headers, twitter_errors)) => {
+                    if twitter_errors.errors.iter().len() > 0 {
+                        println!("Error sending reply: ");
+                        match twitter_errors.errors[0].code {
+                            187 => {
+                                println!("Duplicate tweet");
+                            }
+                            144 => {
+                                println!("Tweet not found");
+                            }
+                            186 => {
+                                println!("Tweet too long");
+                            }
+                            385 => {
+                                println!("Tried to reply to a deleted or hidden tweet.");
+                            }
+                            _ => {
+                                println!("Error replying tweet");
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    println!("Error replying tweet: {:?}", e);
+                }
+            };
         }
     }
 
