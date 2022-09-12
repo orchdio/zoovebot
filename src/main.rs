@@ -93,7 +93,7 @@ pub struct Tidal {
 
 #[tokio::main]
 async fn main() {
-    let ticker1 = ticker(15);
+    let ticker1 = ticker(150);
     let ticker = spawn_blocking(|| ticker1).await.unwrap();
     select! {
         _ = ticker => {
