@@ -32,10 +32,10 @@ impl Display for APIResponse {
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Data {
     pub entity: String,
     pub platforms: Platforms,
+    pub short_url: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -44,6 +44,8 @@ pub struct Platforms {
     pub deezer: Option<Deezer>,
     pub spotify: Option<Spotify>,
     pub tidal: Option<Tidal>,
+    pub ytmusic: Option<YoutubeMusic>,
+    pub applemusic: Option<AppleMusic>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -79,6 +81,36 @@ pub struct Spotify {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Tidal {
+    pub url: Option<String>,
+    pub artistes: Option<Vec<String>>,
+    pub released: Option<String>,
+    pub duration: Option<String>,
+    pub explicit: bool,
+    pub title: Option<String>,
+    pub preview: Option<String>,
+    pub album: Option<String>,
+    pub id: Option<String>,
+    pub cover: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct YoutubeMusic {
+    pub url: Option<String>,
+    pub artistes: Option<Vec<String>>,
+    pub released: Option<String>,
+    pub duration: Option<String>,
+    pub explicit: bool,
+    pub title: Option<String>,
+    pub preview: Option<String>,
+    pub album: Option<String>,
+    pub id: Option<String>,
+    pub cover: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppleMusic {
     pub url: Option<String>,
     pub artistes: Option<Vec<String>>,
     pub released: Option<String>,
@@ -245,16 +277,39 @@ async fn function() {
                     .url
                     .unwrap_or_default()
                     .to_string(),
+                api_data
+                    .clone()
+                    .unwrap()
+                    .platforms
+                    .ytmusic
+                    .unwrap_or_default()
+                    .url
+                    .unwrap_or_default()
+                    .to_string(),
+                api_data
+                    .clone()
+                    .unwrap()
+                    .platforms
+                    .applemusic
+                    .unwrap_or_default()
+                    .url
+                    .unwrap_or_default()
+                    .to_string(),
             ];
 
             // remove urls that may be empty
             links.retain(|x| !x.is_empty());
+            let short_url = format!(
+                "https://zoove.xyz?u={}",
+                api_data.clone().unwrap().short_url
+            );
 
             let reply_text = format!(
                 "Hey 👋🏾 @{}, here are some of the links i found for you:\n {}.\n
-Please tag again to convert another track and I'll reply in a few minutes.",
+You can view more at: {}",
                 tweet.user.as_ref().unwrap().screen_name,
-                links.join("\n ").trim()
+                links.join("\n ").trim(),
+                short_url
             );
 
             let reply = eTweet::DraftTweet::new(reply_text.clone())
