@@ -34,93 +34,7 @@ impl Display for APIResponse {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Data {
     pub entity: String,
-    pub platforms: Platforms,
     pub short_url: String,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Platforms {
-    pub deezer: Option<Deezer>,
-    pub spotify: Option<Spotify>,
-    pub tidal: Option<Tidal>,
-    pub ytmusic: Option<YoutubeMusic>,
-    pub applemusic: Option<AppleMusic>,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Deezer {
-    pub url: Option<String>,
-    pub artistes: Option<Vec<String>>,
-    pub released: Option<String>,
-    pub duration: Option<String>,
-    pub explicit: bool,
-    pub title: Option<String>,
-    pub preview: Option<String>,
-    pub album: Option<String>,
-    pub id: Option<String>,
-    pub cover: Option<String>,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Spotify {
-    pub url: Option<String>,
-    pub artistes: Option<Vec<String>>,
-    pub released: Option<String>,
-    pub duration: Option<String>,
-    pub explicit: bool,
-    pub title: Option<String>,
-    pub preview: Option<String>,
-    pub album: Option<String>,
-    pub id: Option<String>,
-    pub cover: Option<String>,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Tidal {
-    pub url: Option<String>,
-    pub artistes: Option<Vec<String>>,
-    pub released: Option<String>,
-    pub duration: Option<String>,
-    pub explicit: bool,
-    pub title: Option<String>,
-    pub preview: Option<String>,
-    pub album: Option<String>,
-    pub id: Option<String>,
-    pub cover: Option<String>,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct YoutubeMusic {
-    pub url: Option<String>,
-    pub artistes: Option<Vec<String>>,
-    pub released: Option<String>,
-    pub duration: Option<String>,
-    pub explicit: bool,
-    pub title: Option<String>,
-    pub preview: Option<String>,
-    pub album: Option<String>,
-    pub id: Option<String>,
-    pub cover: Option<String>,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AppleMusic {
-    pub url: Option<String>,
-    pub artistes: Option<Vec<String>>,
-    pub released: Option<String>,
-    pub duration: Option<String>,
-    pub explicit: bool,
-    pub title: Option<String>,
-    pub preview: Option<String>,
-    pub album: Option<String>,
-    pub id: Option<String>,
-    pub cover: Option<String>,
 }
 
 #[tokio::main]
@@ -251,64 +165,14 @@ async fn function() {
                 continue;
             }
 
-            let mut links = vec![
-                api_data
-                    .clone()
-                    .unwrap()
-                    .platforms
-                    .deezer
-                    .unwrap_or_default()
-                    .url
-                    .unwrap_or_default(),
-                api_data
-                    .clone()
-                    .unwrap()
-                    .platforms
-                    .spotify
-                    .unwrap_or_default()
-                    .url
-                    .unwrap_or_default(),
-                api_data
-                    .clone()
-                    .unwrap()
-                    .platforms
-                    .tidal
-                    .unwrap_or_default()
-                    .url
-                    .unwrap_or_default()
-                    .to_string(),
-                api_data
-                    .clone()
-                    .unwrap()
-                    .platforms
-                    .ytmusic
-                    .unwrap_or_default()
-                    .url
-                    .unwrap_or_default()
-                    .to_string(),
-                api_data
-                    .clone()
-                    .unwrap()
-                    .platforms
-                    .applemusic
-                    .unwrap_or_default()
-                    .url
-                    .unwrap_or_default()
-                    .to_string(),
-            ];
-
-            // remove urls that may be empty
-            links.retain(|x| !x.is_empty());
             let short_url = format!(
                 "https://zoove.xyz?u={}",
                 api_data.clone().unwrap().short_url
             );
 
             let reply_text = format!(
-                "Hey 👋🏾 @{}, here are some of the links i found for you:\n {}.\n
-You can view more at: {}",
+                "Hey 👋🏾 @{}, your links are available here {}.\n\nYou can connect your account and add playlists to account and more.\n\nPlease mention again to convert and I'll reply shortly.",
                 tweet.user.as_ref().unwrap().screen_name,
-                links.join("\n ").trim(),
                 short_url
             );
 
